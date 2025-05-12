@@ -8,17 +8,21 @@ Create Grocery List when quantities drop below minimum
 Edit item function allows searching single item and
     a) editing quantity
     b) editing cost
-
-Yet to implement:
-Create a "Receive Groceries" Function that:
+Created a "Receive Groceries" Function that:
     a) steps through grocery list or receipt
     b) "receives" items purchased
     c) confirms cost from receipt
+
+Yet to implement:
+
 Create a "Recipe" function that:
     a) allows types of recipes to be stored
     b) removes select quantities from inventory based on recipe
     c) determines if ingredients are on hand to cook a recipe
     d) automatically updates grocery list and inventory
+
+Bug Fixes: 
+    a) incorrect Estimated totals printing on grocery list
 */
 
 #include <iostream>
@@ -44,6 +48,8 @@ void groceryList(int, Provision*);
 bool inList(int, Provision*, std::string);
 void editQuantity(int, Provision*);
 void editPrice(int, Provision*);
+void receiveGroceries(int&, Provision*&);
+
 
 int main()
 {
@@ -54,13 +60,14 @@ int main()
     std::string grocery;   
 
     // Menu options; added as functions are added.
-    cout << "*****Inventory Management System*****\n";
-    cout << "_____________________________________\n";
-    cout << "*****Enter 1 to make inventory*******\n";
-    cout << "*****Enter 2 to make grocery list****\n";
-    cout << "*****Enter 3 to search for an item***\n";
-    cout << "*****Enter 4 to adjust actual quantity\n";
-    cout << "*****Enter 5 to adjust actual price**\n";
+    cout << "*****Inventory Management System********\n";
+    cout << "________________________________________\n";
+    cout << "*****Enter 1 to make inventory**********\n";
+    cout << "*****Enter 2 to make grocery list*******\n";
+    cout << "*****Enter 3 to search for an item******\n";
+    cout << "*****Enter 4 to adjust actual quantity**\n";
+    cout << "*****Enter 5 to adjust actual price*****\n";
+    cout << "*****Enter 6 to receive grocery order***\n";
     cin >> choice;
 
     switch(choice)
@@ -86,6 +93,10 @@ int main()
             break;
         case 5: "Adjusting Unit Cost:\n";
             editPrice(totalBins, pantry);
+            break;
+        case 6: "Receive Grocery Order:\n";
+            receiveGroceries(totalBins, pantry);
+            groceryList(totalBins, pantry);
             break;
         default:
             cout << "Invalid Selection!\n";
@@ -381,6 +392,13 @@ void editQuantity(int totalBins, Provision* pantryList)
     }
 }
 
+/*
+-----------------------------------------------------------------------------
+Allows editing price for a single line item. Will search list to confirm that
+item is actually in the inventory and allow the user to input the new price 
+if the item is present in inventory.
+-----------------------------------------------------------------------------
+*/
 void editPrice(int totalBins, Provision* pantryList)
 {
     std::string grocery;
@@ -421,4 +439,88 @@ void editPrice(int totalBins, Provision* pantryList)
         << pantryList[count].getQuant() << ","
         << pantryList[count].getCost() << "\n";
     }
+}
+
+/*
+-----------------------------------------------------------------------------
+Comprehensive receipt function: 
+Asks user for total line items received
+Compares items against previous inventory
+    If item matches, quantity and cost are updated
+    Else new item, quatity, and cost are added 
+-----------------------------------------------------------------------------
+*/
+
+void receiveGroceries(int& totalBins, Provision*& pantry)
+{
+    int receiptItems;
+    std::cout << "Count line items on the receipt: ";
+    std::cin >> receiptItems;
+    std::cin.ignore();  // clear newline from buffer
+
+    for (int i = 0; i < receiptItems; ++i)
+    {
+        std::string name;
+        int receivedQty;
+        double receivedCost;
+
+        std::cout << "\nItem " << (i + 1) << " name: ";
+        std::getline(std::cin, name);
+
+        std::cout << "Total received: ";
+        std::cin >> receivedQty;
+
+        std::cout << "Cost: ";
+        std::cin >> receivedCost;
+        std::cin.ignore();  // clear buffer
+
+        bool found = false;
+
+        for (int j = 0; j < totalBins; ++j)
+        {
+            if (pantry[j].getName() == name)
+            {
+                pantry[j].setQuant((pantry[j].getQuant()) + receivedQty);
+                if (receivedCost > 0)
+                    pantry[j].setCost(receivedCost);
+
+                found = true;
+                break;
+            }
+        }
+
+        if (!found)
+        {
+            std::cout << "Adding new item to inventory: " << name << "\n";
+
+            Provision* newPantry = new Provision[totalBins + 1];
+            for (int j = 0; j < totalBins; ++j)
+                newPantry[j] = pantry[j];
+
+            newPantry[totalBins].setName(name);
+            newPantry[totalBins].setQuant(receivedQty);
+            newPantry[totalBins].setCost(receivedCost);
+
+            delete[] pantry;
+            pantry = newPantry;
+            ++totalBins;
+        }
+    }
+
+    // Write updated pantry to CSV
+    std::ofstream outFile("pantry.csv");
+    if (!outFile)
+    {
+        std::cerr << "Error opening inventory.csv for writing.\n";
+        return;
+    }
+
+    for (int i = 0; i < totalBins; ++i)
+    {
+        outFile << pantry[i].getName() << "," << pantry[i].getQuant() << "," << pantry[i].getCost() << "\n";
+    }
+
+    outFile.close();
+    std::cout << "\nInventory updated and saved to pantry.csv.\n";
+
 }
